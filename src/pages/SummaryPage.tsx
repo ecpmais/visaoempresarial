@@ -15,9 +15,24 @@ import {
   Download, 
   RefreshCw,
   Star,
-  Home
+  Home,
+  Copy,
+  History,
+  Calendar
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+
+interface VersionHistoryItem {
+  type: string;
+  timestamp: string;
+  vision_inspirational: string;
+  vision_measurable: string;
+  processing_time_ms?: number;
+  variations?: {
+    inspirational?: string[];
+    measurable?: string[];
+  };
+}
 
 interface Analysis {
   id: string;
@@ -26,7 +41,8 @@ interface Analysis {
   meta: {
     keywords?: string[];
     insights?: string[];
-    notes?: string[];
+    notes?: string;
+    version_history?: VersionHistoryItem[];
   };
   created_at: string;
 }
@@ -125,6 +141,32 @@ const SummaryPage = () => {
     localStorage.removeItem('user_name');
     localStorage.removeItem('company_name');
     navigate("/auth");
+  };
+
+  const copyToClipboard = (text: string, label: string = "Texto") => {
+    navigator.clipboard.writeText(text);
+    toast.success(`${label} copiado!`);
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(date);
+  };
+
+  const getVersionLabel = (type: string) => {
+    switch (type) {
+      case "original": return "✨ Versão Original";
+      case "shorter": return "⚡ Versão Mais Curta";
+      case "more_options": return "🎨 Versão Mais Opções";
+      case "shorter_term": return "📅 Versão Curto Prazo";
+      default: return `🔄 ${type}`;
+    }
   };
 
   const userInitials = userName
@@ -284,18 +326,11 @@ const SummaryPage = () => {
                   </div>
                 )}
 
-                {Array.isArray(analysis.meta.notes) && analysis.meta.notes.length > 0 && (
+                {analysis.meta.notes && typeof analysis.meta.notes === 'string' && analysis.meta.notes.trim() && (
                   <div>
                     <Separator className="mb-4" />
                     <h4 className="font-semibold mb-3">Notas importantes:</h4>
-                    <ul className="space-y-2">
-                      {analysis.meta.notes.map((note, index) => (
-                        <li key={index} className="flex gap-2 text-muted-foreground">
-                          <span className="text-primary font-bold">•</span>
-                          <span>{note}</span>
-                        </li>
-                      ))}
-                    </ul>
+                    <p className="text-muted-foreground">{analysis.meta.notes}</p>
                   </div>
                 )}
               </CardContent>
@@ -343,7 +378,7 @@ const SummaryPage = () => {
               <div className="grid md:grid-cols-3 gap-3">
                 <Button
                   variant="outline"
-                  onClick={() => navigate('/wizard')}
+                  onClick={() => navigate('/review')}
                   className="w-full"
                 >
                   <FileText className="h-4 w-4 mr-2" />
@@ -367,6 +402,129 @@ const SummaryPage = () => {
               </div>
             </CardContent>
           </Card>
+
+          {analysis.meta?.version_history && analysis.meta.version_history.length > 1 && (
+            <Card className="shadow-xl border-2 print:hidden animate-in fade-in">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <History className="h-5 w-5 text-primary" />
+                  Histórico de Versões
+                </CardTitle>
+                <CardDescription>
+                  Todas as variações geradas ficam salvas aqui. Você pode copiar qualquer versão.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {analysis.meta.version_history.map((version, index) => (
+                  <div key={index}>
+                    {index > 0 && <Separator className="mb-6" />}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-semibold text-lg">{getVersionLabel(version.type)}</h4>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Calendar className="h-3 w-3" />
+                          {formatDate(version.timestamp)}
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <Card className="bg-muted/30">
+                          <CardHeader className="pb-3">
+                            <div className="flex items-center justify-between">
+                              <CardTitle className="text-sm flex items-center gap-2">
+                                <Target className="h-4 w-4 text-primary" />
+                                Visão Inspiracional
+                              </CardTitle>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => copyToClipboard(version.vision_inspirational, "Visão inspiracional")}
+                              >
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <p className="text-sm">{version.vision_inspirational}</p>
+                          </CardContent>
+                        </Card>
+
+                        <Card className="bg-muted/30">
+                          <CardHeader className="pb-3">
+                            <div className="flex items-center justify-between">
+                              <CardTitle className="text-sm flex items-center gap-2">
+                                <TrendingUp className="h-4 w-4 text-primary" />
+                                Visão Mensurável
+                              </CardTitle>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => copyToClipboard(version.vision_measurable, "Visão mensurável")}
+                              >
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <p className="text-sm">{version.vision_measurable}</p>
+                          </CardContent>
+                        </Card>
+
+                        {version.variations && (
+                          <Card className="bg-accent/10">
+                            <CardHeader className="pb-3">
+                              <CardTitle className="text-sm">Variações Adicionais</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                              {version.variations.inspirational && version.variations.inspirational.length > 0 && (
+                                <div>
+                                  <p className="text-xs font-semibold mb-2 text-muted-foreground">Variações Inspiracionais:</p>
+                                  <ul className="space-y-2">
+                                    {version.variations.inspirational.map((variation, vIdx) => (
+                                      <li key={vIdx} className="flex items-start justify-between gap-2 text-sm">
+                                        <span className="flex-1">{vIdx + 1}. {variation}</span>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => copyToClipboard(variation, `Variação ${vIdx + 1}`)}
+                                        >
+                                          <Copy className="h-3 w-3" />
+                                        </Button>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+
+                              {version.variations.measurable && version.variations.measurable.length > 0 && (
+                                <div>
+                                  <p className="text-xs font-semibold mb-2 text-muted-foreground">Variações Mensuráveis:</p>
+                                  <ul className="space-y-2">
+                                    {version.variations.measurable.map((variation, vIdx) => (
+                                      <li key={vIdx} className="flex items-start justify-between gap-2 text-sm">
+                                        <span className="flex-1">{vIdx + 1}. {variation}</span>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => copyToClipboard(variation, `Variação ${vIdx + 1}`)}
+                                        >
+                                          <Copy className="h-3 w-3" />
+                                        </Button>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>

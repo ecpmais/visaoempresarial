@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import HomePage from "./pages/HomePage";
 import RegistrationPage from "./pages/RegistrationPage";
 import WizardPage from "./pages/WizardPage";
+import ReviewPage from "./pages/ReviewPage";
 import ProcessingPage from "./pages/ProcessingPage";
 import SummaryPage from "./pages/SummaryPage";
 import NotFound from "./pages/NotFound";
@@ -22,6 +23,7 @@ const App = () => (
           <Route path="/" element={<HomePage />} />
           <Route path="/auth" element={<RegistrationPage />} />
           <Route path="/wizard" element={<WizardPage />} />
+          <Route path="/review" element={<ReviewPage />} />
           <Route path="/processing" element={<ProcessingPage />} />
           <Route path="/summary" element={<SummaryPage />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

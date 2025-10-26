@@ -151,7 +151,7 @@ const WizardPage = () => {
       setCurrentStep(nextStep);
       await updateStage(nextStep);
     } else {
-      navigate("/processing", { state: { sessionId } });
+      navigate("/review");
     }
   };
 
@@ -267,7 +267,7 @@ const WizardPage = () => {
                 onClick={handleNext}
                 className="bg-primary hover:bg-primary/90"
               >
-                {currentStep === 10 ? "Analisar Respostas" : "Avançar"}
+                {currentStep === 10 ? "Revisar Respostas" : "Avançar"}
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
             </div>

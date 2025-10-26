@@ -107,12 +107,19 @@ serve(async (req) => {
 A) Inspiracional: sem métricas, foco em inspirar e motivar
 B) Mensurável: com métrica quantificável ou resultado específico
 
+**USO DE PALAVRAS-CHAVE (CRÍTICO):**
+- Extraia TODAS as palavras-chave mencionadas na pergunta 10, sem limite de quantidade
+- Use o MÁXIMO possível dessas palavras-chave nas declarações de visão
+- Você pode adaptar as palavras gramaticalmente: "grandioso" → "grandiosa", "criar" → "criação", "10 mil" → "dez mil"
+- Varie entre singular/plural, verbo/substantivo conforme necessário para criar frases naturais
+- Priorize incorporar as palavras-chave de forma natural e inspiradora
+
 Analise as respostas do usuário e retorne JSON puro (sem markdown):
 
 {
   "vision_inspirational": "string (max 14 palavras)",
   "vision_measurable": "string (max 14 palavras)",
-  "keywords": ["array de 3-5 palavras-chave"],
+  "keywords": ["array com TODAS as palavras-chave da pergunta 10, sem limite"],
   "insights": ["array de 2-3 insights curtos"],
   "notes": "observação concisa sobre o perfil estratégico"
 }`;
@@ -158,7 +165,7 @@ Analise as respostas do usuário e retorne JSON puro (sem markdown):
       const elapsedTime = Date.now() - startTime;
       console.log(`[${new Date().toISOString()}] Analysis completed in ${elapsedTime}ms`);
 
-      // Save analysis
+      // Save analysis with version history
       const { data: analysis, error: analysisError } = await supabase
         .from("analyses")
         .insert({
@@ -169,7 +176,15 @@ Analise as respostas do usuário e retorne JSON puro (sem markdown):
             keywords: result.keywords || [],
             insights: result.insights || [],
             notes: result.notes || "",
-            processing_time_ms: elapsedTime
+            processing_time_ms: elapsedTime,
+            version_history: [
+              {
+                type: "original",
+                timestamp: new Date().toISOString(),
+                vision_inspirational: result.vision_inspirational,
+                vision_measurable: result.vision_measurable
+              }
+            ]
           }
         })
         .select()
@@ -270,20 +285,31 @@ Retorne JSON:
 
       const elapsedTime = Date.now() - startTime;
 
-      // Update analysis with new versions
+      // Add to version history instead of overwriting
+      const versionHistory = analysis.meta?.version_history || [];
+      
+      const newVersion: any = {
+        type: mode,
+        timestamp: new Date().toISOString(),
+        vision_inspirational: result.vision_inspirational,
+        vision_measurable: result.vision_measurable,
+        processing_time_ms: elapsedTime
+      };
+
+      if (result.variations) {
+        newVersion.variations = result.variations;
+      }
+
+      versionHistory.push(newVersion);
+
       const updatedMeta = {
         ...analysis.meta,
-        [`${mode}_rewrite`]: result,
-        [`${mode}_time_ms`]: elapsedTime
+        version_history: versionHistory
       };
 
       const { error: updateError } = await supabase
         .from("analyses")
-        .update({
-          vision_inspirational: result.vision_inspirational,
-          vision_measurable: result.vision_measurable,
-          meta: updatedMeta
-        })
+        .update({ meta: updatedMeta })
         .eq("id", analysis.id);
 
       if (updateError) throw updateError;
