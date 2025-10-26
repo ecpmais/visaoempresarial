@@ -111,6 +111,38 @@ export type Database = {
         }
         Relationships: []
       }
+      user_profiles: {
+        Row: {
+          company_name: string
+          created_at: string
+          id: string
+          session_id: string
+          user_name: string
+        }
+        Insert: {
+          company_name: string
+          created_at?: string
+          id?: string
+          session_id: string
+          user_name: string
+        }
+        Update: {
+          company_name?: string
+          created_at?: string
+          id?: string
+          session_id?: string
+          user_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_profiles_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: true
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

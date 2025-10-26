@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Sparkles, Target } from "lucide-react";
 import { toast } from "sonner";
+import { Sparkles, Target } from "lucide-react";
 
 const ProcessingPage = () => {
   const navigate = useNavigate();
@@ -10,36 +10,40 @@ const ProcessingPage = () => {
   const sessionId = location.state?.sessionId;
 
   useEffect(() => {
-    if (!sessionId) {
-      navigate("/wizard");
+    const sessionToken = localStorage.getItem('session_token');
+    const storedSessionId = localStorage.getItem('session_id');
+    
+    if (!sessionToken || !storedSessionId) {
+      navigate('/auth');
       return;
     }
+    
+    if (!sessionId) {
+      navigate('/wizard');
+      return;
+    }
+    
+    analyzeResponses(sessionToken);
+  }, [sessionId, navigate]);
 
-    analyzeResponses();
-  }, [sessionId]);
-
-  const analyzeResponses = async () => {
+  const analyzeResponses = async (sessionToken: string) => {
     try {
-      const { data, error } = await supabase.functions.invoke("process-responses", {
-        body: { session_id: sessionId, action: "analyze" }
+      const { data, error } = await supabase.functions.invoke('process-responses', {
+        body: { 
+          action: 'analyze',
+          session_id: sessionId,
+          session_token: sessionToken
+        }
       });
 
       if (error) throw error;
 
-      if (data.error) {
-        toast.error(data.error);
-        navigate("/wizard");
-        return;
-      }
-
-      // Navigate to summary after successful analysis
-      setTimeout(() => {
-        navigate("/summary", { state: { sessionId, analysisId: data.analysis_id } });
-      }, 2000);
+      toast.success('Análise concluída!');
+      navigate('/summary', { state: { sessionId } });
     } catch (error: any) {
-      console.error("Error analyzing responses:", error);
-      toast.error("Erro ao analisar respostas. Por favor, tente novamente.");
-      navigate("/wizard");
+      console.error('Error analyzing responses:', error);
+      toast.error(error.message || 'Erro ao processar respostas');
+      navigate('/wizard');
     }
   };
 

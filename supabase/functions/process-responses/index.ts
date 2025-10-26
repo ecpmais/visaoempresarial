@@ -12,17 +12,50 @@ serve(async (req) => {
   }
 
   try {
-    const { session_id, action, mode } = await req.json();
-
-    if (!session_id) {
-      throw new Error("session_id is required");
-    }
+    const { session_id, action, mode, user_name, company_name, session_token } = await req.json();
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const lovableApiKey = Deno.env.get("LOVABLE_API_KEY")!;
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    if (action === "create-session") {
+      console.log(`[${new Date().toISOString()}] Creating session`);
+
+      if (!user_name || !company_name || !session_token) {
+        throw new Error("user_name, company_name, and session_token are required");
+      }
+
+      // Create session
+      const { data: newSession, error: sessionError } = await supabase
+        .from("sessions")
+        .insert({ session_token, user_id: null, stage: 1 })
+        .select()
+        .single();
+
+      if (sessionError) throw sessionError;
+
+      // Create profile
+      const { error: profileError } = await supabase
+        .from("user_profiles")
+        .insert({
+          session_id: newSession.id,
+          user_name: user_name.trim(),
+          company_name: company_name.trim()
+        });
+
+      if (profileError) throw profileError;
+
+      return new Response(
+        JSON.stringify({ success: true, session_id: newSession.id }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!session_id) {
+      throw new Error("session_id is required");
+    }
 
     if (action === "analyze") {
       console.log(`[${new Date().toISOString()}] Starting analysis for session: ${session_id}`);

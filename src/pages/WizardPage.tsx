@@ -1,12 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, ArrowRight, Trash2, Sparkles, LogOut } from "lucide-react";
+import { ArrowLeft, ArrowRight, Eraser, Home } from "lucide-react";
 import { useDebounce } from "@/hooks/use-debounce";
 
 const questions = [
@@ -27,103 +28,97 @@ const WizardPage = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [userId, setUserId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [userName, setUserName] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  
+  const debouncedAnswers = useDebounce(answers, 1000);
 
-  const currentAnswer = answers[currentStep] || "";
-  const debouncedAnswer = useDebounce(currentAnswer, 500);
+  // Load session from localStorage
+  const loadSession = async () => {
+    const sessionToken = localStorage.getItem('session_token');
+    const storedSessionId = localStorage.getItem('session_id');
+    const storedUserName = localStorage.getItem('user_name');
+    const storedCompanyName = localStorage.getItem('company_name');
 
-  useEffect(() => {
-    checkAuth();
-  }, []);
-
-  const checkAuth = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
+    if (!sessionToken || !storedSessionId) {
       navigate("/auth");
       return;
     }
-    setUserId(session.user.id);
-    await loadOrCreateSession(session.user.id);
-  };
 
-  const loadOrCreateSession = async (userId: string) => {
-    try {
-      // Try to load existing session
-      const { data: existingSessions, error: fetchError } = await supabase
-        .from("sessions")
-        .select("*")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(1);
+    setSessionId(storedSessionId);
+    setUserName(storedUserName || "");
+    setCompanyName(storedCompanyName || "");
 
-      if (fetchError) throw fetchError;
+    // Load session stage and responses
+    const { data: session, error: sessionError } = await supabase
+      .from('sessions')
+      .select('stage')
+      .eq('id', storedSessionId)
+      .eq('session_token', sessionToken)
+      .single();
 
-      if (existingSessions && existingSessions.length > 0) {
-        const session = existingSessions[0];
-        setSessionId(session.id);
-        setCurrentStep(session.stage);
-        await loadResponses(session.id);
-      } else {
-        // Create new session
-        const { data: newSession, error: createError } = await supabase
-          .from("sessions")
-          .insert({ user_id: userId, stage: 1 })
-          .select()
-          .single();
-
-        if (createError) throw createError;
-        setSessionId(newSession.id);
-      }
-    } catch (error: any) {
-      toast.error("Erro ao carregar sessão: " + error.message);
-    } finally {
-      setLoading(false);
+    if (sessionError || !session) {
+      console.error('Error loading session:', sessionError);
+      toast.error('Sessão inválida');
+      navigate("/auth");
+      return;
     }
+
+    setCurrentStep(session.stage);
+    await loadResponses(storedSessionId);
   };
 
+  // Load existing responses
   const loadResponses = async (sessionId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from("responses")
-        .select("*")
-        .eq("session_id", sessionId);
+    const { data, error } = await supabase
+      .from('responses')
+      .select('question_number, answer_text')
+      .eq('session_id', sessionId);
 
-      if (error) throw error;
-
-      const answersMap: Record<number, string> = {};
-      data.forEach(response => {
-        answersMap[response.question_number] = response.answer_text;
-      });
-      setAnswers(answersMap);
-    } catch (error: any) {
-      console.error("Error loading responses:", error);
+    if (error) {
+      console.error('Error loading responses:', error);
+      return;
     }
+
+    const loadedAnswers: Record<number, string> = {};
+    data?.forEach((response) => {
+      loadedAnswers[response.question_number] = response.answer_text;
+    });
+    setAnswers(loadedAnswers);
   };
 
   useEffect(() => {
-    if (sessionId && debouncedAnswer) {
+    loadSession();
+  }, []);
+
+  // Save answer (debounced)
+  useEffect(() => {
+    if (sessionId && debouncedAnswers[currentStep]) {
       saveAnswer();
     }
-  }, [debouncedAnswer]);
+  }, [debouncedAnswers, currentStep, sessionId]);
 
   const saveAnswer = async () => {
-    if (!sessionId || !debouncedAnswer.trim()) return;
+    if (!sessionId) return;
+    
+    const answer = debouncedAnswers[currentStep];
+    if (!answer || !answer.trim()) return;
 
     try {
       const { error } = await supabase
-        .from("responses")
+        .from('responses')
         .upsert({
           session_id: sessionId,
           question_number: currentStep,
-          answer_text: debouncedAnswer
+          answer_text: answer
         }, {
-          onConflict: "session_id,question_number"
+          onConflict: 'session_id,question_number'
         });
 
       if (error) throw error;
     } catch (error: any) {
-      console.error("Error saving answer:", error);
+      console.error('Error saving answer:', error);
     }
   };
 
@@ -132,18 +127,19 @@ const WizardPage = () => {
 
     try {
       const { error } = await supabase
-        .from("sessions")
+        .from('sessions')
         .update({ stage: newStage })
-        .eq("id", sessionId);
+        .eq('id', sessionId);
 
       if (error) throw error;
     } catch (error: any) {
-      console.error("Error updating stage:", error);
+      console.error('Error updating stage:', error);
     }
   };
 
   const handleNext = async () => {
-    if (!currentAnswer.trim()) {
+    const currentAnswer = answers[currentStep];
+    if (!currentAnswer || !currentAnswer.trim()) {
       toast.error("Por favor, responda a pergunta atual antes de continuar.");
       return;
     }
@@ -155,16 +151,15 @@ const WizardPage = () => {
       setCurrentStep(nextStep);
       await updateStage(nextStep);
     } else {
-      // All questions answered, go to processing
       navigate("/processing", { state: { sessionId } });
     }
   };
 
-  const handlePrevious = async () => {
+  const handlePrevious = () => {
     if (currentStep > 1) {
       const prevStep = currentStep - 1;
       setCurrentStep(prevStep);
-      await updateStage(prevStep);
+      updateStage(prevStep);
     }
   };
 
@@ -172,44 +167,56 @@ const WizardPage = () => {
     setAnswers(prev => ({ ...prev, [currentStep]: "" }));
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate("/");
+  const handleNewAnalysis = () => {
+    localStorage.removeItem('session_token');
+    localStorage.removeItem('session_id');
+    localStorage.removeItem('user_name');
+    localStorage.removeItem('company_name');
+    navigate("/auth");
   };
 
-  const progress = (currentStep / 10) * 100;
+  const userInitials = userName
+    .split(' ')
+    .map(n => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-secondary/20 to-background flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <Sparkles className="h-12 w-12 text-primary mx-auto animate-pulse" />
-          <p className="text-muted-foreground">Carregando...</p>
-        </div>
-      </div>
-    );
-  }
+  const progress = (currentStep / 10) * 100;
+  const currentAnswer = answers[currentStep] || "";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-secondary/20 to-background">
-      {/* Header */}
-      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+      <header className="bg-card border-b sticky top-0 z-10 shadow-sm">
+        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+          <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-lg">EP</span>
+              <span className="text-primary-foreground font-bold">EP</span>
             </div>
-            <span className="font-semibold text-lg">EP Partners</span>
+            <div>
+              <h1 className="text-xl font-bold">Criador de Visão</h1>
+              <p className="text-xs text-muted-foreground">Etapa {currentStep} de 10</p>
+            </div>
           </div>
-          <Button variant="outline" size="sm" onClick={handleLogout}>
-            <LogOut className="h-4 w-4 mr-2" />
-            Sair
-          </Button>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Avatar className="h-8 w-8">
+                <AvatarFallback className="text-xs">{userInitials}</AvatarFallback>
+              </Avatar>
+              <div className="hidden sm:block">
+                <p className="text-sm font-medium">{userName}</p>
+                <p className="text-xs text-muted-foreground">{companyName}</p>
+              </div>
+            </div>
+            <Button variant="outline" size="sm" onClick={handleNewAnalysis}>
+              <Home className="h-4 w-4 mr-2" />
+              Nova Análise
+            </Button>
+          </div>
         </div>
       </header>
 
       <div className="container mx-auto px-4 py-8 max-w-3xl">
-        {/* Progress */}
         <div className="mb-8 space-y-2">
           <div className="flex justify-between text-sm text-muted-foreground">
             <span>Pergunta {currentStep} de 10</span>
@@ -218,40 +225,35 @@ const WizardPage = () => {
           <Progress value={progress} className="h-2" />
         </div>
 
-        {/* Question Card */}
         <Card className="shadow-xl border-2 animate-in fade-in slide-in-from-bottom">
-          <CardContent className="pt-6 space-y-6">
-            <div className="space-y-4">
-              <h2 className="text-2xl font-semibold leading-tight">
-                {questions[currentStep - 1]}
-              </h2>
-              
-              <div className="space-y-2">
-                <Textarea
-                  value={currentAnswer}
-                  onChange={(e) => setAnswers(prev => ({ ...prev, [currentStep]: e.target.value }))}
-                  placeholder="Digite sua resposta aqui..."
-                  className="min-h-[200px] resize-none"
-                  maxLength={1000}
-                />
-                <div className="flex justify-between items-center text-sm text-muted-foreground">
-                  <span>{currentAnswer.length}/1000 caracteres</span>
-                  {currentAnswer && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleClear}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Limpar resposta
-                    </Button>
-                  )}
-                </div>
+          <CardHeader>
+            <CardTitle className="text-2xl">{questions[currentStep - 1]}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Textarea
+                value={currentAnswer}
+                onChange={(e) => setAnswers(prev => ({ ...prev, [currentStep]: e.target.value }))}
+                placeholder="Digite sua resposta aqui..."
+                className="min-h-[200px] resize-none"
+                maxLength={1000}
+              />
+              <div className="flex justify-between items-center text-sm text-muted-foreground">
+                <span>{currentAnswer.length}/1000 caracteres</span>
+                {currentAnswer && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleClear}
+                    className="text-destructive hover:text-destructive"
+                  >
+                    <Eraser className="h-4 w-4 mr-2" />
+                    Limpar
+                  </Button>
+                )}
               </div>
             </div>
 
-            {/* Navigation Buttons */}
             <div className="flex justify-between pt-4">
               <Button
                 variant="outline"
@@ -265,23 +267,13 @@ const WizardPage = () => {
                 onClick={handleNext}
                 className="bg-primary hover:bg-primary/90"
               >
-                {currentStep === 10 ? (
-                  <>
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    Analisar Respostas
-                  </>
-                ) : (
-                  <>
-                    Avançar
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                  </>
-                )}
+                {currentStep === 10 ? "Analisar Respostas" : "Avançar"}
+                <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
             </div>
           </CardContent>
         </Card>
 
-        {/* Stepper Indicator */}
         <div className="mt-8 flex justify-center gap-2">
           {Array.from({ length: 10 }, (_, i) => i + 1).map((step) => (
             <button
@@ -293,7 +285,7 @@ const WizardPage = () => {
               className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-all ${
                 step === currentStep
                   ? "bg-primary text-primary-foreground scale-110"
-                  : step < currentStep
+                  : step < currentStep || answers[step]
                   ? "bg-success text-success-foreground"
                   : "bg-muted text-muted-foreground hover:bg-muted/80"
               }`}
