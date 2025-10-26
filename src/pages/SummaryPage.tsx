@@ -256,7 +256,7 @@ const SummaryPage = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                {analysis.meta.keywords && analysis.meta.keywords.length > 0 && (
+                {Array.isArray(analysis.meta.keywords) && analysis.meta.keywords.length > 0 && (
                   <div>
                     <h4 className="font-semibold mb-3">Palavras-chave identificadas:</h4>
                     <div className="flex flex-wrap gap-2">
@@ -269,7 +269,7 @@ const SummaryPage = () => {
                   </div>
                 )}
 
-                {analysis.meta.insights && analysis.meta.insights.length > 0 && (
+                {Array.isArray(analysis.meta.insights) && analysis.meta.insights.length > 0 && (
                   <div>
                     <Separator className="mb-4" />
                     <h4 className="font-semibold mb-3">Insights estratégicos:</h4>
@@ -284,7 +284,7 @@ const SummaryPage = () => {
                   </div>
                 )}
 
-                {analysis.meta.notes && analysis.meta.notes.length > 0 && (
+                {Array.isArray(analysis.meta.notes) && analysis.meta.notes.length > 0 && (
                   <div>
                     <Separator className="mb-4" />
                     <h4 className="font-semibold mb-3">Notas importantes:</h4>
