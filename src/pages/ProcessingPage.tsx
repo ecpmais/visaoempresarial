@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Sparkles, Target } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import Logo from "@/components/Logo";
 
 const ProcessingPage = () => {
   const navigate = useNavigate();
@@ -49,7 +50,9 @@ const ProcessingPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-secondary/20 to-background flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-background via-secondary/20 to-background flex flex-col items-center justify-center p-4 gap-8">
+      <Logo size="lg" className="animate-pulse" />
+      
       <div className="text-center space-y-8 animate-in fade-in slide-in-from-bottom">
         <div className="relative">
           <div className="absolute inset-0 flex items-center justify-center">

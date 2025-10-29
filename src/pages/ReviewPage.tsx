@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { ArrowLeft, ArrowRight, Edit, Home } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/useAuth";
+import Logo from "@/components/Logo";
 
 const questions = [
   "Qual é o segmento de negócio em que você está inserido?",
@@ -133,9 +134,7 @@ const ReviewPage = () => {
       <header className="bg-card border-b sticky top-0 z-10 shadow-sm">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-              <span className="text-primary-foreground font-bold">EP</span>
-            </div>
+            <Logo size="md" />
             <div>
               <h1 className="text-xl font-bold">Revisão Final</h1>
               <p className="text-xs text-muted-foreground">Confira suas respostas</p>

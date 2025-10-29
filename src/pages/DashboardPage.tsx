@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Plus, LogOut, Trash2, Eye, Edit } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import Logo from "@/components/Logo";
 
 interface SessionWithAnalysis {
   id: string;
@@ -151,16 +152,19 @@ const DashboardPage = () => {
       <div className="container mx-auto max-w-6xl space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Dashboard</h1>
-            <p className="text-muted-foreground">
-              Bem-vindo, {profile?.full_name || user?.email}
-            </p>
-          </div>
+          <Logo size="md" />
           <Button variant="outline" onClick={signOut}>
             <LogOut className="mr-2 h-4 w-4" />
             Sair
           </Button>
+        </div>
+
+        {/* Welcome Section */}
+        <div>
+          <h1 className="text-3xl font-bold">Dashboard</h1>
+          <p className="text-muted-foreground">
+            Bem-vindo, {profile?.full_name || user?.email}
+          </p>
         </div>
 
         {/* Profile Card */}

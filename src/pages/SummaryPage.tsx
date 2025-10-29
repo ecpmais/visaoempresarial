@@ -22,6 +22,7 @@ import {
   Calendar
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import Logo from "@/components/Logo";
 
 interface VersionHistoryItem {
   type: string;
@@ -205,9 +206,7 @@ const SummaryPage = () => {
       <header className="bg-card border-b sticky top-0 z-10 shadow-sm print:hidden">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-              <span className="text-primary-foreground font-bold">EP</span>
-            </div>
+            <Logo size="md" />
             <div>
               <h1 className="text-xl font-bold">Sua Visão Empresarial</h1>
               <p className="text-xs text-muted-foreground">Análise de: {profile.full_name} - {profile.company_name}</p>
