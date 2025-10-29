@@ -3,36 +3,37 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Sparkles, Target } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 const ProcessingPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
   const sessionId = location.state?.sessionId;
 
   useEffect(() => {
-    const sessionToken = localStorage.getItem('session_token');
-    const storedSessionId = localStorage.getItem('session_id');
-    
-    if (!sessionToken || !storedSessionId) {
+    if (!user) {
       navigate('/auth');
       return;
     }
     
     if (!sessionId) {
-      navigate('/wizard');
+      navigate('/dashboard');
       return;
     }
     
-    analyzeResponses(sessionToken);
-  }, [sessionId, navigate]);
+    analyzeResponses();
+  }, [sessionId, user, navigate]);
 
-  const analyzeResponses = async (sessionToken: string) => {
+  const analyzeResponses = async () => {
+    if (!user) return;
+
     try {
       const { data, error } = await supabase.functions.invoke('process-responses', {
         body: { 
           action: 'analyze',
           session_id: sessionId,
-          session_token: sessionToken
+          user_id: user.id
         }
       });
 
@@ -43,7 +44,7 @@ const ProcessingPage = () => {
     } catch (error: any) {
       console.error('Error analyzing responses:', error);
       toast.error(error.message || 'Erro ao processar respostas');
-      navigate('/wizard');
+      navigate('/review', { state: { sessionId } });
     }
   };
 

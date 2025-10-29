@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ArrowLeft, ArrowRight, Edit, Home } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { useAuth } from "@/hooks/useAuth";
 
 const questions = [
   "Qual é o segmento de negócio em que você está inserido?",
@@ -23,42 +24,52 @@ const questions = [
 
 const ReviewPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user } = useAuth();
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [userName, setUserName] = useState("");
-  const [companyName, setCompanyName] = useState("");
+  const [profile, setProfile] = useState<{ full_name: string; company_name: string } | null>(null);
 
   useEffect(() => {
     loadSession();
-  }, []);
+  }, [user]);
 
   const loadSession = async () => {
-    const sessionToken = localStorage.getItem('session_token');
-    const storedSessionId = localStorage.getItem('session_id');
-    const storedUserName = localStorage.getItem('user_name');
-    const storedCompanyName = localStorage.getItem('company_name');
-
-    if (!sessionToken || !storedSessionId) {
+    if (!user) {
       navigate("/auth");
       return;
     }
 
-    setSessionId(storedSessionId);
-    setUserName(storedUserName || "");
-    setCompanyName(storedCompanyName || "");
+    const sessionIdFromState = location.state?.sessionId;
+
+    if (!sessionIdFromState) {
+      navigate("/dashboard");
+      return;
+    }
+
+    setSessionId(sessionIdFromState);
+
+    // Load profile
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('full_name, company_name')
+      .eq('id', user.id)
+      .single();
+
+    setProfile(profileData);
 
     // Load all responses
     const { data, error } = await supabase
       .from('responses')
       .select('question_number, answer_text')
-      .eq('session_id', storedSessionId)
+      .eq('session_id', sessionIdFromState)
       .order('question_number');
 
     if (error) {
       console.error('Error loading responses:', error);
       toast.error('Erro ao carregar respostas');
-      navigate("/wizard");
+      navigate("/wizard", { state: { sessionId: sessionIdFromState } });
       return;
     }
 
@@ -71,7 +82,7 @@ const ReviewPage = () => {
   };
 
   const handleEdit = (questionNumber: number) => {
-    navigate("/wizard", { state: { editQuestion: questionNumber } });
+    navigate("/wizard", { state: { sessionId, editQuestion: questionNumber } });
   };
 
   const handleGenerate = () => {
@@ -92,25 +103,21 @@ const ReviewPage = () => {
   };
 
   const handleBack = () => {
-    navigate("/wizard");
+    navigate("/wizard", { state: { sessionId } });
   };
 
-  const handleNewAnalysis = () => {
-    localStorage.removeItem('session_token');
-    localStorage.removeItem('session_id');
-    localStorage.removeItem('user_name');
-    localStorage.removeItem('company_name');
-    navigate("/auth");
+  const handleBackToDashboard = () => {
+    navigate("/dashboard");
   };
 
-  const userInitials = userName
+  const userInitials = profile?.full_name
     .split(' ')
     .map(n => n[0])
     .join('')
     .toUpperCase()
-    .slice(0, 2);
+    .slice(0, 2) || "U";
 
-  if (loading) {
+  if (loading || !profile) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -140,13 +147,13 @@ const ReviewPage = () => {
                 <AvatarFallback className="text-xs">{userInitials}</AvatarFallback>
               </Avatar>
               <div className="hidden sm:block">
-                <p className="text-sm font-medium">{userName}</p>
-                <p className="text-xs text-muted-foreground">{companyName}</p>
+                <p className="text-sm font-medium">{profile.full_name}</p>
+                <p className="text-xs text-muted-foreground">{profile.company_name}</p>
               </div>
             </div>
-            <Button variant="outline" size="sm" onClick={handleNewAnalysis}>
+            <Button variant="outline" size="sm" onClick={handleBackToDashboard}>
               <Home className="h-4 w-4 mr-2" />
-              Nova Análise
+              Dashboard
             </Button>
           </div>
         </div>

@@ -2,9 +2,18 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
 import { Target, TrendingUp, Workflow, Sparkles } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { useEffect } from "react";
 
 const HomePage = () => {
   const navigate = useNavigate();
+  const { user, loading } = useAuth();
+
+  useEffect(() => {
+    if (!loading && user) {
+      navigate("/dashboard");
+    }
+  }, [user, loading, navigate]);
 
   const features = [
     {
@@ -59,7 +68,7 @@ const HomePage = () => {
           </p>
           <Button
             size="lg"
-            onClick={() => navigate("/wizard")}
+            onClick={() => navigate("/auth")}
             className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-xl hover:shadow-2xl hover:-translate-y-0.5 transition-all duration-300 mt-8"
           >
             <Sparkles className="mr-2 h-5 w-5" />

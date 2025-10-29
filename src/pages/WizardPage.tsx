@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ArrowLeft, ArrowRight, Eraser, Home } from "lucide-react";
 import { useDebounce } from "@/hooks/use-debounce";
+import { useAuth } from "@/hooks/useAuth";
 
 const questions = [
   "Qual é o segmento de negócio em que você está inserido?",
@@ -25,48 +26,71 @@ const questions = [
 
 const WizardPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [userName, setUserName] = useState("");
-  const [companyName, setCompanyName] = useState("");
+  const [profile, setProfile] = useState<{ full_name: string; company_name: string } | null>(null);
   
   const debouncedAnswers = useDebounce(answers, 1000);
 
-  // Load session from localStorage
+  // Load or create session
   const loadSession = async () => {
-    const sessionToken = localStorage.getItem('session_token');
-    const storedSessionId = localStorage.getItem('session_id');
-    const storedUserName = localStorage.getItem('user_name');
-    const storedCompanyName = localStorage.getItem('company_name');
+    if (!user) return;
 
-    if (!sessionToken || !storedSessionId) {
-      navigate("/auth");
-      return;
+    const sessionIdFromState = location.state?.sessionId;
+
+    if (sessionIdFromState) {
+      // Load existing session
+      setSessionId(sessionIdFromState);
+      await loadSessionData(sessionIdFromState);
+    } else {
+      // Create new session
+      const { data: newSession, error } = await supabase
+        .from('sessions')
+        .insert({ user_id: user.id, stage: 1 })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating session:', error);
+        toast.error('Erro ao criar sessão');
+        navigate("/dashboard");
+        return;
+      }
+
+      setSessionId(newSession.id);
     }
 
-    setSessionId(storedSessionId);
-    setUserName(storedUserName || "");
-    setCompanyName(storedCompanyName || "");
+    // Load profile
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('full_name, company_name')
+      .eq('id', user.id)
+      .single();
 
-    // Load session stage and responses
+    setProfile(profileData);
+  };
+
+  const loadSessionData = async (sessionId: string) => {
+    // Load session stage
     const { data: session, error: sessionError } = await supabase
       .from('sessions')
       .select('stage')
-      .eq('id', storedSessionId)
-      .eq('session_token', sessionToken)
+      .eq('id', sessionId)
       .single();
 
     if (sessionError || !session) {
       console.error('Error loading session:', sessionError);
       toast.error('Sessão inválida');
-      navigate("/auth");
+      navigate("/dashboard");
       return;
     }
 
     setCurrentStep(session.stage);
-    await loadResponses(storedSessionId);
+    await loadResponses(sessionId);
   };
 
   // Load existing responses
@@ -90,7 +114,7 @@ const WizardPage = () => {
 
   useEffect(() => {
     loadSession();
-  }, []);
+  }, [user]);
 
   // Save answer (debounced)
   useEffect(() => {
@@ -151,7 +175,7 @@ const WizardPage = () => {
       setCurrentStep(nextStep);
       await updateStage(nextStep);
     } else {
-      navigate("/review");
+      navigate("/review", { state: { sessionId } });
     }
   };
 
@@ -167,23 +191,27 @@ const WizardPage = () => {
     setAnswers(prev => ({ ...prev, [currentStep]: "" }));
   };
 
-  const handleNewAnalysis = () => {
-    localStorage.removeItem('session_token');
-    localStorage.removeItem('session_id');
-    localStorage.removeItem('user_name');
-    localStorage.removeItem('company_name');
-    navigate("/auth");
+  const handleBackToDashboard = () => {
+    navigate("/dashboard");
   };
 
-  const userInitials = userName
+  const userInitials = profile?.full_name
     .split(' ')
     .map(n => n[0])
     .join('')
     .toUpperCase()
-    .slice(0, 2);
+    .slice(0, 2) || "U";
 
   const progress = (currentStep / 10) * 100;
   const currentAnswer = answers[currentStep] || "";
+
+  if (!user || !profile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-secondary/20 to-background">
@@ -204,13 +232,13 @@ const WizardPage = () => {
                 <AvatarFallback className="text-xs">{userInitials}</AvatarFallback>
               </Avatar>
               <div className="hidden sm:block">
-                <p className="text-sm font-medium">{userName}</p>
-                <p className="text-xs text-muted-foreground">{companyName}</p>
+                <p className="text-sm font-medium">{profile.full_name}</p>
+                <p className="text-xs text-muted-foreground">{profile.company_name}</p>
               </div>
             </div>
-            <Button variant="outline" size="sm" onClick={handleNewAnalysis}>
+            <Button variant="outline" size="sm" onClick={handleBackToDashboard}>
               <Home className="h-4 w-4 mr-2" />
-              Nova Análise
+              Dashboard
             </Button>
           </div>
         </div>

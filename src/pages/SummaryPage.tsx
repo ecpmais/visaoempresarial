@@ -7,6 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 import { 
   Sparkles, 
   Target, 
@@ -50,34 +51,43 @@ interface Analysis {
 const SummaryPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
   const sessionId = location.state?.sessionId;
 
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [loading, setLoading] = useState(true);
   const [rewriteLoading, setRewriteLoading] = useState(false);
   const [favoriteVision, setFavoriteVision] = useState<'inspirational' | 'measurable' | null>(null);
-  const [userName, setUserName] = useState("");
-  const [companyName, setCompanyName] = useState("");
+  const [profile, setProfile] = useState<{ full_name: string; company_name: string } | null>(null);
 
   useEffect(() => {
-    const sessionToken = localStorage.getItem('session_token');
-    const storedUserName = localStorage.getItem('user_name');
-    const storedCompanyName = localStorage.getItem('company_name');
-
-    if (!sessionToken) {
+    if (!user) {
       navigate('/auth');
       return;
     }
 
-    setUserName(storedUserName || "");
-    setCompanyName(storedCompanyName || "");
-
-    if (sessionId) {
-      loadAnalysis();
-    } else {
-      setLoading(false);
+    if (!sessionId) {
+      navigate('/dashboard');
+      return;
     }
-  }, [sessionId]);
+
+    loadData();
+  }, [user, sessionId]);
+
+  const loadData = async () => {
+    if (!user) return;
+
+    // Load profile
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('full_name, company_name')
+      .eq('id', user.id)
+      .single();
+
+    setProfile(profileData);
+
+    await loadAnalysis();
+  };
 
   const loadAnalysis = async () => {
     try {
@@ -100,13 +110,7 @@ const SummaryPage = () => {
   };
 
   const handleRewrite = async (mode: 'shorter' | 'more_options' | 'shorter_term') => {
-    if (!sessionId) return;
-    
-    const sessionToken = localStorage.getItem('session_token');
-    if (!sessionToken) {
-      navigate('/auth');
-      return;
-    }
+    if (!sessionId || !user) return;
 
     setRewriteLoading(true);
     try {
@@ -114,7 +118,7 @@ const SummaryPage = () => {
         body: { 
           action: 'rewrite',
           session_id: sessionId,
-          session_token: sessionToken,
+          user_id: user.id,
           mode 
         }
       });
@@ -135,12 +139,8 @@ const SummaryPage = () => {
     window.print();
   };
 
-  const handleNewAnalysis = () => {
-    localStorage.removeItem('session_token');
-    localStorage.removeItem('session_id');
-    localStorage.removeItem('user_name');
-    localStorage.removeItem('company_name');
-    navigate("/auth");
+  const handleBackToDashboard = () => {
+    navigate("/dashboard");
   };
 
   const copyToClipboard = (text: string, label: string = "Texto") => {
@@ -169,14 +169,14 @@ const SummaryPage = () => {
     }
   };
 
-  const userInitials = userName
+  const userInitials = profile?.full_name
     .split(' ')
     .map(n => n[0])
     .join('')
     .toUpperCase()
-    .slice(0, 2);
+    .slice(0, 2) || "U";
 
-  if (loading) {
+  if (loading || !profile) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-secondary/20 to-background flex items-center justify-center">
         <div className="text-center space-y-4">
@@ -192,8 +192,8 @@ const SummaryPage = () => {
       <div className="min-h-screen bg-gradient-to-br from-background via-secondary/20 to-background flex items-center justify-center">
         <div className="text-center space-y-4">
           <p className="text-muted-foreground">Nenhuma análise encontrada.</p>
-          <Button onClick={() => navigate('/wizard')}>
-            Voltar ao Wizard
+          <Button onClick={() => navigate('/dashboard')}>
+            Voltar ao Dashboard
           </Button>
         </div>
       </div>
@@ -210,7 +210,7 @@ const SummaryPage = () => {
             </div>
             <div>
               <h1 className="text-xl font-bold">Sua Visão Empresarial</h1>
-              <p className="text-xs text-muted-foreground">Análise de: {userName} - {companyName}</p>
+              <p className="text-xs text-muted-foreground">Análise de: {profile.full_name} - {profile.company_name}</p>
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -219,13 +219,13 @@ const SummaryPage = () => {
                 <AvatarFallback className="text-xs">{userInitials}</AvatarFallback>
               </Avatar>
               <div className="hidden sm:block">
-                <p className="text-sm font-medium">{userName}</p>
-                <p className="text-xs text-muted-foreground">{companyName}</p>
+                <p className="text-sm font-medium">{profile.full_name}</p>
+                <p className="text-xs text-muted-foreground">{profile.company_name}</p>
               </div>
             </div>
-            <Button variant="outline" size="sm" onClick={handleNewAnalysis}>
+            <Button variant="outline" size="sm" onClick={handleBackToDashboard}>
               <Home className="h-4 w-4 mr-2" />
-              Nova Análise
+              Dashboard
             </Button>
           </div>
         </div>
@@ -378,7 +378,7 @@ const SummaryPage = () => {
               <div className="grid md:grid-cols-3 gap-3">
                 <Button
                   variant="outline"
-                  onClick={() => navigate('/review')}
+                  onClick={() => navigate('/review', { state: { sessionId } })}
                   className="w-full"
                 >
                   <FileText className="h-4 w-4 mr-2" />
@@ -393,11 +393,11 @@ const SummaryPage = () => {
                   Exportar PDF
                 </Button>
                 <Button
-                  onClick={handleNewAnalysis}
+                  onClick={handleBackToDashboard}
                   className="w-full bg-primary hover:bg-primary/90"
                 >
                   <Home className="h-4 w-4 mr-2" />
-                  Nova Análise
+                  Dashboard
                 </Button>
               </div>
             </CardContent>
