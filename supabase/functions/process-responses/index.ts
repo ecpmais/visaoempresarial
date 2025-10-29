@@ -1,3 +1,23 @@
+/**
+ * EDGE FUNCTION: process-responses
+ * 
+ * Processa respostas do usuário para gerar declarações de visão empresarial
+ * usando IA (Google Gemini 2.5 Flash).
+ * 
+ * AÇÕES DISPONÍVEIS:
+ * - analyze: Cria visões iniciais a partir das 10 respostas
+ * - rewrite: Reescreve visões existentes (shorter, more_options, shorter_term)
+ * 
+ * CONTEXTO ESTRATÉGICO:
+ * A IA é instruída com conhecimento profundo sobre:
+ * - Tipos de visão (inspiracional vs mensurável)
+ * - Exemplos reais de empresas (Amazon, Harvard, Virtus, etc.)
+ * - Regras fundamentais (foco no "ONDE", 8-14 palavras, 2 linhas)
+ * - Análise de frequência de palavras e posicionamento estratégico
+ * 
+ * PALAVRAS-CHAVE: Uso máximo com flexibilidade gramatical
+ * IMAGEM MENTAL: Inspiração emocional da pergunta 9
+ */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
@@ -37,7 +57,9 @@ serve(async (req) => {
     }
 
     if (action === "analyze") {
-      console.log(`[${new Date().toISOString()}] Starting analysis for session: ${session_id}`);
+      console.log("=== ANÁLISE DE VISÃO INICIADA ===");
+      console.log("Session ID:", session_id);
+      console.log("Timestamp:", new Date().toISOString());
       
       // Load all 10 responses
       const { data: responses, error: responsesError } = await supabase
@@ -55,55 +77,130 @@ serve(async (req) => {
         );
       }
 
+      console.log("Total de respostas:", responses.length);
+
       // Build context from responses
       const questions = [
         "Segmento de negócio",
-        "O que a empresa faz",
-        "Tipo de business",
-        "Público-alvo",
-        "Visão em 3-5 anos",
-        "Direção dos esforços",
-        "Medição de sucesso",
-        "Matéria da Forbes",
-        "Imagem da visão alcançada",
-        "Palavras-chave repetidas"
+        "Principal produto/serviço",
+        "Diferencial competitivo",
+        "Problema que resolve",
+        "Cliente ideal",
+        "Valores fundamentais",
+        "Objetivos de curto prazo",
+        "Objetivos de longo prazo",
+        "Imagem mental do futuro da empresa",
+        "Palavras-chave que representam a essência da empresa"
       ];
 
-      const contextLines = responses.map((r, i) => 
-        `${i + 1}. ${questions[i]}: ${r.answer_text}`
-      ).join("\n");
+      let contextString = "# RESPOSTAS DO CLIENTE:\n\n";
+      responses.forEach((response, index) => {
+        contextString += `${index + 1}. ${questions[index]}: ${response.answer_text}\n`;
+      });
 
-      const systemPrompt = `Você é um especialista em Cultura Organizacional e Planejamento Estratégico, focado em criar declarações de VISÃO EMPRESARIAL.
+      // Log das perguntas mais importantes para análise
+      console.log("Palavras-chave (Q10):", responses[9]?.answer_text);
+      console.log("Imagem mental (Q9):", responses[8]?.answer_text);
 
-**REGRAS CRÍTICAS:**
-1. Visão NUNCA descreve "O QUE" a empresa faz nem "COMO" ela faz
-2. Visão é sobre "ONDE" a empresa quer chegar (destino, norte, direção)
-3. Máximo 2 linhas e 8 a 14 palavras TOTAL
-4. Use palavras repetidas e a imagem mental da pergunta 9
-5. Tom profissional e inspirador
+      // Adicionar análise de frequência de palavras
+      contextString += "\n# INSTRUÇÕES ADICIONAIS:\n";
+      contextString += "- Preste atenção especial às palavras que se repetem nas respostas acima\n";
+      contextString += "- As palavras da pergunta 10 devem ser PRIORIZADAS na construção da visão\n";
+      contextString += "- A imagem mental da pergunta 9 deve inspirar o tom emocional da visão\n";
+      contextString += "- Identifique o posicionamento estratégico (especialista vs generalista)\n\n";
+      contextString += "Agora, com base nessas informações, crie as duas declarações de visão (inspiracional e mensurável).";
 
-**TIPOS DE VISÃO:**
-A) Inspiracional: sem métricas, foco em inspirar e motivar
-B) Mensurável: com métrica quantificável ou resultado específico
+      const systemPrompt = `Você é um especialista em Cultura Organizacional e Planejamento Estratégico, focado em criar DECLARAÇÕES DE VISÃO EMPRESARIAL.
 
-**USO DE PALAVRAS-CHAVE (CRÍTICO):**
-- Extraia TODAS as palavras-chave mencionadas na pergunta 10, sem limite de quantidade
-- Use o MÁXIMO possível dessas palavras-chave nas declarações de visão
-- Você pode adaptar as palavras gramaticalmente: "grandioso" → "grandiosa", "criar" → "criação", "10 mil" → "dez mil"
-- Varie entre singular/plural, verbo/substantivo conforme necessário para criar frases naturais
-- Priorize incorporar as palavras-chave de forma natural e inspiradora
+# CONTEXTO FUNDAMENTAL
 
-Analise as respostas do usuário e retorne JSON puro (sem markdown):
+## O que é Visão Empresarial?
+Visão empresarial deve ser grandiosa, inspiradora e estratégica para:
+- Guiar o planejamento estratégico da empresa
+- Atrair e reter talentos alinhados com o propósito
+- Dar direção, norte, destino e foco
+- Posicionar estrategicamente a empresa no mercado
 
-{
-  "vision_inspirational": "string (max 14 palavras)",
-  "vision_measurable": "string (max 14 palavras)",
-  "keywords": ["array com TODAS as palavras-chave da pergunta 10, sem limite"],
-  "insights": ["array de 2-3 insights curtos"],
-  "notes": "observação concisa sobre o perfil estratégico"
-}`;
+Visão é o que a empresa busca no FUTURO, é um DESTINO, é o "ONDE" a empresa quer chegar.
+O poder da visão é que as pessoas ficam dispostas a apoiá-la quando percebem que ela converge com seus objetivos individuais.
 
-      const userPrompt = `Respostas do usuário:\n\n${contextLines}\n\nCrie as duas declarações de visão.`;
+## Tipos de Visão
+
+1. **INSPIRACIONAL** (mais comum):
+   - Não contém métricas
+   - Busca inspirar e motivar as ações da empresa
+   - Exemplos:
+     * Amazon: "Ser a empresa mais centrada no cliente da terra"
+       → Foco: cliente como prioridade absoluta (nichamento comportamental)
+     * Harvard: "Ser referência em educação para líderes no mundo, para o benefício da humanidade"
+       → Foco: especialização (líderes) + impacto global
+     * Virtus: "Ser referência em qualidade e satisfação do cliente no ramo de GALPÕES"
+       → Foco: especialista (não generalista) + diferenciação (não preço baixo)
+     * Google: "Ser o buscador de maior prestígio e o mais importante do mundo"
+     * Netflix: "Continuar sendo uma das empresas líderes da era do entretenimento na internet"
+     * Meta: "Construir uma comunidade global e conectar o mundo"
+     * Apple: "Fazer os melhores produtos do mundo e deixar o mundo melhor do que encontramos"
+
+2. **MENSURÁVEL**:
+   - Possui métrica quantificável
+   - Define metas específicas e prazos
+   - Exemplos:
+     * "Levar saúde e beleza para 1MM de pessoas até 2025"
+     * "Estar entre as 100 maiores construtoras do BR até 2026"
+     * "Criar a mais grandiosa comunidade de empresas com propósito do Mundo - #Rumoàs10k"
+
+# REGRAS OBRIGATÓRIAS PARA A DECLARAÇÃO DE VISÃO
+
+## ❌ O QUE NÃO FAZER:
+- NUNCA descrever "O QUE" a empresa faz (produtos/serviços)
+- NUNCA descrever "COMO" a empresa opera (processos/métodos)
+- NUNCA ultrapassar 2 linhas ou 14 palavras
+
+## ✅ O QUE FAZER:
+- Focar SEMPRE no "ONDE" a empresa quer chegar (destino/direção)
+- Máximo de 2 linhas e **8 a 14 palavras NO TOTAL**
+- Tom profissional, inspirador e estratégico
+- Refletir o impacto que a empresa deseja causar no mundo
+
+# PROCESSO DE ANÁLISE
+
+## 1. Análise de Frequência e Significado:
+- Analise TODAS as 10 respostas do cliente
+- Identifique palavras que SE REPETEM ao longo das respostas
+- Determine quais palavras têm MAIOR SIGNIFICADO estratégico para o cliente
+- Essas palavras revelam os valores e direcionamentos mais importantes
+
+## 2. Uso CRÍTICO das Palavras-Chave (Pergunta 10):
+- Extraia TODAS as palavras-chave da pergunta 10 (sem limite de quantidade)
+- Use o MÁXIMO POSSÍVEL destas palavras nas declarações de visão
+- Permita adaptações gramaticais naturais:
+  * Singular ↔ Plural (ex: "empresa" → "empresas")
+  * Verbo ↔ Substantivo (ex: "criar" → "criação", "transformar" → "transformação")
+  * Gênero (ex: "grandioso" → "grandiosa")
+  * Tempo verbal (ex: "transformando" → "transformar")
+- Priorize incorporação NATURAL e INSPIRADORA das palavras-chave
+
+## 3. Imagem Mental (Pergunta 9):
+- Use a imagem mental descrita para adicionar elementos visuais/emocionais à visão
+- A imagem deve complementar as palavras-chave de forma coerente
+
+## 4. Posicionamento Estratégico:
+- Identifique se a empresa busca ser ESPECIALISTA (nicho específico) ou GENERALISTA
+- Determine o diferencial competitivo (qualidade, inovação, cliente, preço, etc.)
+- Reflita o nichamento e competitividade na declaração de visão
+
+# FORMATO DE SAÍDA
+
+Retorne um JSON puro (sem markdown) com:
+- "vision_inspirational": string (8-14 palavras, sem métricas, inspiradora)
+- "vision_measurable": string (8-14 palavras, com métrica ou meta quantificável)
+- "keywords": array com TODAS as palavras-chave da pergunta 10
+- "insights": array com 2-3 insights curtos sobre o perfil estratégico
+- "notes": string com observação concisa sobre o posicionamento estratégico identificado
+
+**LEMBRE-SE**: As declarações devem focar no IMPACTO que a empresa quer causar e no DESTINO que ela busca alcançar, não nas atividades que ela realiza.`;
+
+      const userPrompt = contextString;
 
       const startTime = Date.now();
 
@@ -142,7 +239,29 @@ Analise as respostas do usuário e retorne JSON puro (sem markdown):
       const result = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(content);
 
       const elapsedTime = Date.now() - startTime;
-      console.log(`[${new Date().toISOString()}] Analysis completed in ${elapsedTime}ms`);
+
+      // Validar tamanho das visões
+      const validateVisionLength = (vision: string, type: string) => {
+        const wordCount = vision.trim().split(/\s+/).length;
+        if (wordCount < 8 || wordCount > 14) {
+          console.warn(`[AVISO] ${type} tem ${wordCount} palavras (ideal: 8-14)`);
+        }
+        
+        const lineCount = vision.split('\n').length;
+        if (lineCount > 2) {
+          console.warn(`[AVISO] ${type} tem ${lineCount} linhas (máximo: 2)`);
+        }
+      };
+
+      validateVisionLength(result.vision_inspirational, "Visão Inspiracional");
+      validateVisionLength(result.vision_measurable, "Visão Mensurável");
+
+      console.log("=== RESULTADO DA IA ===");
+      console.log("Visão Inspiracional:", result.vision_inspirational);
+      console.log("Visão Mensurável:", result.vision_measurable);
+      console.log("Total de keywords extraídas:", result.keywords?.length || 0);
+      console.log("Keywords:", result.keywords);
+      console.log(`Análise completada em ${elapsedTime}ms`);
 
       // Save analysis with version history
       const { data: analysis, error: analysisError } = await supabase
