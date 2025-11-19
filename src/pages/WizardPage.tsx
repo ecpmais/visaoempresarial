@@ -32,7 +32,7 @@ const questionExamples = [
   "Por exemplo: pequenas e médias empresas, grandes corporações, indústrias, empreendedores, etc...",
   null,
   "Por exemplo: algum setor específico, empresas sustentáveis, empresas familiares, negócios digitais, etc...",
-  null,
+  "Exemplo: número de empresas atendidas, resultados financeiros dos clientes, transformação gerada, impacto social, etc...",
   null,
   null,
   null
