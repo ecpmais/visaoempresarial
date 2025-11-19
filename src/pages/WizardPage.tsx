@@ -31,7 +31,7 @@ const questionExamples = [
   'Por exemplo: "Inovação tecnológica", "Eficiência financeira", "Gestão estratégica", "Resultados mensuráveis", etc... O que define melhor o foco da sua atuação?',
   "Por exemplo: pequenas e médias empresas, grandes corporações, indústrias, empreendedores, etc...",
   null,
-  null,
+  "Por exemplo: algum setor específico, empresas sustentáveis, empresas familiares, negócios digitais, etc...",
   null,
   null,
   null,
