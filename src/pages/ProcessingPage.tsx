@@ -26,8 +26,20 @@ const ProcessingPage = () => {
     analyzeResponses();
   }, [sessionId, user, navigate]);
 
-  const analyzeResponses = async () => {
+  const analyzeResponses = async (attempt = 1) => {
     if (!user) return;
+
+    const timeoutId = setTimeout(() => {
+      if (attempt < 3) {
+        console.log(`Timeout reached. Retrying (attempt ${attempt + 1}/3)...`);
+        toast.error("Processamento demorado. Tentando novamente...");
+        analyzeResponses(attempt + 1);
+      } else {
+        console.error('Max retries reached');
+        toast.error("Tempo esgotado após 3 tentativas. Tente novamente mais tarde.");
+        navigate('/review', { state: { sessionId } });
+      }
+    }, 60000); // 60 seconds timeout
 
     try {
       const { data, error } = await supabase.functions.invoke('process-responses', {
@@ -38,14 +50,26 @@ const ProcessingPage = () => {
         }
       });
 
+      clearTimeout(timeoutId);
+
       if (error) throw error;
 
       toast.success('Análise concluída!');
       navigate('/summary', { state: { sessionId } });
     } catch (error: any) {
+      clearTimeout(timeoutId);
       console.error('Error analyzing responses:', error);
-      toast.error(error.message || 'Erro ao processar respostas');
-      navigate('/review', { state: { sessionId } });
+      
+      // Retry on error
+      if (attempt < 3) {
+        console.log(`Error occurred. Retrying (attempt ${attempt + 1}/3)...`);
+        toast.error("Erro no processamento. Tentando novamente...");
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s before retry
+        analyzeResponses(attempt + 1);
+      } else {
+        toast.error(error.message || 'Erro ao processar respostas após 3 tentativas');
+        navigate('/review', { state: { sessionId } });
+      }
     }
   };
 
