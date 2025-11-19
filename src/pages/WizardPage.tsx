@@ -25,6 +25,19 @@ const questions = [
   "Das respostas acima, quais palavras-chave se repetem e têm mais significado?"
 ];
 
+const questionExamples = [
+  '(Exemplo: "Tecnologia", "Educação", "Saúde", "Financeiro", etc.)',
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null
+];
+
 const WizardPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -284,6 +297,11 @@ const WizardPage = () => {
         <Card className="shadow-xl border-2 animate-in fade-in slide-in-from-bottom">
           <CardHeader>
             <CardTitle className="text-2xl">{questions[currentStep - 1]}</CardTitle>
+            {questionExamples[currentStep - 1] && (
+              <CardDescription className="text-sm text-muted-foreground mt-2">
+                {questionExamples[currentStep - 1]}
+              </CardDescription>
+            )}
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
