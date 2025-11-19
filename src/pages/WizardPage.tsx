@@ -34,6 +34,8 @@ const WizardPage = () => {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [profile, setProfile] = useState<{ full_name: string; company_name: string } | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
   
   const debouncedAnswers = useDebounce(answers, 1000);
 
@@ -124,13 +126,14 @@ const WizardPage = () => {
     }
   }, [debouncedAnswers, currentStep, sessionId]);
 
-  const saveAnswer = async () => {
-    if (!sessionId) return;
+  const saveAnswer = async (retryCount = 0): Promise<boolean> => {
+    if (!sessionId) return false;
     
     const answer = debouncedAnswers[currentStep];
-    if (!answer || !answer.trim()) return;
+    if (!answer || !answer.trim()) return false;
 
     try {
+      setIsSaving(true);
       const { error } = await supabase
         .from('responses')
         .upsert({
@@ -142,8 +145,23 @@ const WizardPage = () => {
         });
 
       if (error) throw error;
+      
+      setLastSaved(new Date());
+      return true;
     } catch (error: any) {
       console.error('Error saving answer:', error);
+      
+      // Retry logic
+      if (retryCount < 3) {
+        console.log(`Retrying save (attempt ${retryCount + 1}/3)...`);
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s before retry
+        return saveAnswer(retryCount + 1);
+      } else {
+        toast.error("Erro ao salvar resposta. Verifique sua conexão.");
+        return false;
+      }
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -169,7 +187,16 @@ const WizardPage = () => {
       return;
     }
 
-    await saveAnswer();
+    setLoading(true);
+    
+    // Wait for save to complete before navigating
+    const saved = await saveAnswer();
+    
+    if (!saved) {
+      setLoading(false);
+      toast.error("Não foi possível salvar sua resposta. Tente novamente.");
+      return;
+    }
 
     if (currentStep < 10) {
       const nextStep = currentStep + 1;
@@ -178,6 +205,8 @@ const WizardPage = () => {
     } else {
       navigate("/review", { state: { sessionId } });
     }
+    
+    setLoading(false);
   };
 
   const handlePrevious = () => {
@@ -265,8 +294,26 @@ const WizardPage = () => {
                 className="min-h-[200px] resize-none"
                 maxLength={1000}
               />
-              <div className="flex justify-between items-center text-sm text-muted-foreground">
+              
+              {/* Save Indicator */}
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <span>{currentAnswer.length}/1000 caracteres</span>
+                <div className="flex items-center gap-2">
+                  {isSaving && (
+                    <>
+                      <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary"></div>
+                      <span>Salvando...</span>
+                    </>
+                  )}
+                  {!isSaving && lastSaved && (
+                    <span className="text-green-600">
+                      ✓ Salvo há {Math.floor((Date.now() - lastSaved.getTime()) / 1000)}s
+                    </span>
+                  )}
+                </div>
+              </div>
+              
+              <div className="flex justify-end">
                 {currentAnswer && (
                   <Button
                     variant="ghost"
@@ -277,7 +324,7 @@ const WizardPage = () => {
                     <Eraser className="h-4 w-4 mr-2" />
                     Limpar
                   </Button>
-                )}
+                 )}
               </div>
             </div>
 
@@ -285,17 +332,32 @@ const WizardPage = () => {
               <Button
                 variant="outline"
                 onClick={handlePrevious}
-                disabled={currentStep === 1}
+                disabled={currentStep === 1 || loading}
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Voltar
               </Button>
               <Button
                 onClick={handleNext}
+                disabled={!currentAnswer || !currentAnswer.trim() || loading || isSaving}
                 className="bg-primary hover:bg-primary/90"
               >
-                {currentStep === 10 ? "Revisar Respostas" : "Avançar"}
-                <ArrowRight className="h-4 w-4 ml-2" />
+                {loading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Salvando...
+                  </>
+                ) : currentStep === 10 ? (
+                  <>
+                    Revisar Respostas
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </>
+                ) : (
+                  <>
+                    Avançar
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </>
+                )}
               </Button>
             </div>
           </CardContent>

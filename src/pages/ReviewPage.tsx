@@ -60,6 +60,25 @@ const ReviewPage = () => {
 
     setProfile(profileData);
 
+    // CRITICAL: Validate that all 10 responses exist before loading
+    const { count, error: countError } = await supabase
+      .from('responses')
+      .select('*', { count: 'exact', head: true })
+      .eq('session_id', sessionIdFromState);
+
+    if (countError) {
+      console.error('Error checking responses:', countError);
+      toast.error('Erro ao verificar respostas');
+      navigate("/wizard", { state: { sessionId: sessionIdFromState } });
+      return;
+    }
+
+    if (count !== 10) {
+      toast.error(`Complete todas as 10 perguntas primeiro. Você respondeu ${count} de 10.`);
+      navigate("/wizard", { state: { sessionId: sessionIdFromState } });
+      return;
+    }
+
     // Load all responses
     const { data, error } = await supabase
       .from('responses')
@@ -86,6 +105,8 @@ const ReviewPage = () => {
     navigate("/wizard", { state: { sessionId, editQuestion: questionNumber } });
   };
 
+  const [isGenerating, setIsGenerating] = useState(false);
+
   const handleGenerate = () => {
     // Check if all questions are answered
     const missingAnswers = [];
@@ -100,6 +121,7 @@ const ReviewPage = () => {
       return;
     }
 
+    setIsGenerating(true);
     navigate("/processing", { state: { sessionId } });
   };
 
@@ -212,13 +234,26 @@ const ReviewPage = () => {
         </Card>
 
         <div className="flex justify-between mt-8">
-          <Button variant="outline" onClick={handleBack}>
+          <Button variant="outline" onClick={handleBack} disabled={isGenerating}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Voltar
           </Button>
-          <Button onClick={handleGenerate} className="bg-primary hover:bg-primary/90">
-            Gerar Análise
-            <ArrowRight className="h-4 w-4 ml-2" />
+          <Button 
+            onClick={handleGenerate} 
+            className="bg-primary hover:bg-primary/90"
+            disabled={isGenerating}
+          >
+            {isGenerating ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Iniciando...
+              </>
+            ) : (
+              <>
+                Gerar Análise
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </>
+            )}
           </Button>
         </div>
       </div>
