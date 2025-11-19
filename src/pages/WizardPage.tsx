@@ -27,7 +27,7 @@ const questions = [
 
 const questionExamples = [
   '(Exemplo: "Tecnologia", "Educação", "Saúde", "Financeiro", etc.)',
-  null,
+  "Descreva com suas palavras a principal entrega da sua empresa",
   null,
   null,
   null,
