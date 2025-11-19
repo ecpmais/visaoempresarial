@@ -35,7 +35,7 @@ const questionExamples = [
   "Exemplo: número de empresas atendidas, resultados financeiros dos clientes, transformação gerada, impacto social, etc...",
   'Exemplo: "A consultoria brasileira que transformou 10 mil empresas com propósito no mundo"',
   "Pode ser um objeto, parte da natureza, ou algo inventado pelo homem.",
-  null
+  "Escolha entre 3 a 7 palavras chaves que você usou nas respostas anteriores"
 ];
 
 const WizardPage = () => {
