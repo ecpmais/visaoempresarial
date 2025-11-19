@@ -29,7 +29,7 @@ const questionExamples = [
   '(Exemplo: "Tecnologia", "Educação", "Saúde", "Financeiro", etc.)',
   "Descreva com suas palavras a principal entrega da sua empresa",
   'Por exemplo: "Inovação tecnológica", "Eficiência financeira", "Gestão estratégica", "Resultados mensuráveis", etc... O que define melhor o foco da sua atuação?',
-  null,
+  "Por exemplo: pequenas e médias empresas, grandes corporações, indústrias, empreendedores, etc...",
   null,
   null,
   null,
