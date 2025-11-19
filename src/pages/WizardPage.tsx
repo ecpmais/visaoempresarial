@@ -34,7 +34,7 @@ const questionExamples = [
   "Por exemplo: algum setor específico, empresas sustentáveis, empresas familiares, negócios digitais, etc...",
   "Exemplo: número de empresas atendidas, resultados financeiros dos clientes, transformação gerada, impacto social, etc...",
   'Exemplo: "A consultoria brasileira que transformou 10 mil empresas com propósito no mundo"',
-  null,
+  "Pode ser um objeto, parte da natureza, ou algo inventado pelo homem.",
   null
 ];
 
